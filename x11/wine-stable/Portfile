@@ -15,8 +15,8 @@ PortGroup                   active_variants 1.1
 name                        wine-stable
 conflicts                   wine wine-devel wine-staging wine-crossover
 set my_name                 wine
-version                     5.0.2
-revision                    0
+version                     6.0
+revision                    2
 set branch                  [lindex [split ${version} .] 0].0
 license                     LGPL-2.1+
 categories                  x11
@@ -47,9 +47,9 @@ extract.only                ${wine_distfile}
 distfiles                   ${wine_distfile}:winesource
 
 checksums                   ${wine_distfile} \
-                            rmd160  61da25298395b0c15152edb21d1bfa4d5796d5dd \
-                            sha256  ec0f71eea6d7499058fd3cdd032f953526a6023e971989ed460738dcbca64450 \
-                            size    36705167
+                            rmd160  501a5ca707c604687e1057175106a4ee32c18660 \
+                            sha256  6748b6a8d7fb2113c3f89566c79be90e7e00c998bd8b9b300a8a33372ad32e34 \
+                            size    40436490
 
 # Note: Most of the X11 libs are dlopen()'d
 depends_lib                 port:fontconfig \
@@ -58,21 +58,20 @@ depends_lib                 port:fontconfig \
                             port:gnutls \
                             port:gstreamer1 \
                             port:gstreamer1-gst-plugins-base \
-                            port:jpeg \
+                            path:include/turbojpeg.h:libjpeg-turbo \
                             port:lcms2 \
                             port:libiconv \
                             port:libpcap \
                             port:libpng \
+                            port:libusb \
+                            port:libunwind \
                             port:libxml2 \
                             port:libxslt \
                             port:mpg123 \
-                            port:ncurses \
                             port:openal-soft \
                             port:tiff \
-                            port:libunwind \
                             port:wine-gecko \
-                            port:wine-mono \
-                            port:zlib
+                            port:wine-mono-5.1.1
 
 depends_build               port:bison \
                             port:flex \
@@ -80,17 +79,28 @@ depends_build               port:bison \
                             port:pkgconfig
 
 # Disable winemenubuilder, stops useless .desktop files
-patchfiles                  HACK-skip_building_winemenubuilder.diff
+#patchfiles                  HACK-skip_building_winemenubuilder.diff
 
-# Disable Quicktime
-patchfiles-append           configure_add_disable_quicktime.diff
+# https://bugs.winehq.org/show_bug.cgi?id=50436
+patchfiles                  configure_FAudio_Uppercase.diff
 
-# https://bugs.winehq.org/show_bug.cgi?id=49774 (Regression, check again for Wine-Stable-5.0.3)
-patchfiles-append           winemac.drv_Dont_fail_GPU_detection_if_some_IOKit_properties_are_missing.diff \
-                            winemac.drv_Print_error_when_no_GPUs_are_detected.diff
+# Apple Silicon patches from upstream
+# Remove wine-stable-6.0.1
+if {${build_arch} eq "x86_64" && ${os.major} >= 20} {
+    patchfiles-append       M1_GPU.diff \
+                            Rosetta2.diff
+                            
+}
+
+# https://bugs.winehq.org/show_bug.cgi?id=34166#c103
+patchfiles-append           noflicker.diff
+
+# Fixes cross compilation with GCC 11
+# Remove wine-stable-6.0.2
+patchfiles-append           PATCH-msvcrt_Add_sincos_to_importlib.diff
 
 pre-configure {
-    if {[variant_isset universal]} {
+    if {[variant_exists universal] && [variant_isset universal]} {
         foreach arch ${universal_archs_to_use} {
             file mkdir ${worksrcpath}-${arch}
         }
@@ -109,13 +119,11 @@ configure.args              --without-alsa \
                             --with-cms \
                             --with-coreaudio \
                             --with-cups \
-                            --with-curses \
                             --without-dbus \
                             --with-faudio \
                             --with-fontconfig \
                             --with-freetype \
-                            --without-gcrypt \
-                            --without-gettext \
+                            --with-gettext \
                             --without-gettextpo \
                             --without-gphoto \
                             --with-glu \
@@ -123,12 +131,11 @@ configure.args              --without-alsa \
                             --without-gsm \
                             --without-gssapi \
                             --with-gstreamer \
-                            --without-gtk3 \
                             --without-hal \
                             --without-inotify \
                             --with-jpeg \
                             --without-krb5 \
-                            --without-ldap \
+                            --with-ldap \
                             --with-mingw \
                             --with-mpg123 \
                             --without-netapi \
@@ -147,9 +154,9 @@ configure.args              --without-alsa \
                             --with-tiff \
                             --without-udev \
                             --with-unwind \
+                            --with-usb \
                             --without-v4l2 \
                             --without-vkd3d \
-                            --without-xattr \
                             --without-xcomposite \
                             --without-xcursor \
                             --without-xfixes \
@@ -163,8 +170,6 @@ configure.args              --without-alsa \
                             --without-xshm \
                             --with-xslt \
                             --without-xxf86vm \
-                            --with-zlib \
-                            --without-va \
                             --without-x
 
 # Wine has a native macOS driver since 1.5.26 so X11 is optional
@@ -220,11 +225,9 @@ variant ffmpeg {
                                 port:gstreamer1-gst-libav
 
     configure.args-delete       --without-dbus \
-                                --without-gtk3 \
                                 --without-krb5
 
     configure.args-append       --with-dbus \
-                                --with-gtk3 \
                                 --with-krb5
     
     require_active_variants     port:FAudio wma
@@ -234,9 +237,9 @@ if {${os.platform} ne "darwin" && (${os.major} >= 9 && ${os.major} <= 18)} {
     default_variants        +x11
 }
 
-# Standard dlopen is used within wine since 5.6, wine(64) no longer finds libs on its
-# own so hardcode them https://bugs.winehq.org/show_bug.cgi?id=49199
-configure.ldflags-append          -Wl,-rpath,${prefix}/lib
+# Standard dlopen is used within wine since 5.6, wine(64) no longer finds dylibs
+# https://bugs.winehq.org/show_bug.cgi?id=49199
+configure.ldflags-append          -Wl,-rpath,@loader_path/../
 
 configure.universal_args
 
@@ -248,7 +251,7 @@ set merger_configure_args(i386)   --with-wine64=${workpath}/${worksrcdir}-x86_64
 if {${build_arch} eq "x86_64" && ${os.major} >= 19} {
     macosx_deployment_target    "10.14"
     build.args-append           "dlldir=\\\\\${destroot}${prefix}/lib/wine64"
-    destroot.args-append        "dlldir=\\\\\${destroot}${prefix}/lib/wine64"
+    destroot.args-append        "dlldir=\\\${destroot}${prefix}/lib/wine64"
     configure.args-append       "--enable-win64 --libdir=${prefix}/lib"
 }
 
@@ -256,7 +259,10 @@ if {${build_arch} eq "x86_64" && ${os.major} <= 18} {
     default_variants-append     +universal
 }
 
-if {[variant_isset universal]} {
+if {![info exists universal_possible]} {
+    set universal_possible [expr {${os.universal_supported} && [llength ${configure.universal_archs}] >= 2}]
+}
+if {${universal_possible} && [variant_isset universal]} {
     supported_archs         i386 x86_64
 } elseif {${build_arch} eq "x86_64" && ${os.major} >= 19} {
     supported_archs         x86_64
@@ -271,26 +277,18 @@ compiler.blacklist-append   {gcc-4.2 < 5600}
 # http://bugs.winehq.org/show_bug.cgi?id=28030
 compiler.blacklist-append   *llvm-gcc-4.2
 
-# clang < 3.1 fails to build wine with "error: invalid operand for instruction lretw"
-# http://bugs.winehq.org/show_bug.cgi?id=32872
-# clang < 3.2 have code generation problems:
-# http://llvm.org/bugs/show_bug.cgi?id=9707
-compiler.blacklist-append   {clang < 500}
+# wine requires clang >= 3.8
+compiler.blacklist-append   {clang < 800} \
+                            gcc-4.0 \
+                            gcc-4.2 \
+                            apple-gcc-4.2 \
+                            macports-clang-3.3 \
+                            macports-clang-3.4 \
+                            macports-clang-3.7
+compiler.fallback-append    macports-clang-5.0
 
 # FSF GCC cannot compile code using Apple's "blocks" language extensions
 compiler.blacklist-append   macports-gcc-*
-
-if {[variant_isset universal]} {
-    # wine for 64-bit requires clang >= 3.8
-    compiler.blacklist-append   {clang < 800} \
-                                gcc-4.0 \
-                                gcc-4.2 \
-                                apple-gcc-4.2 \
-                                macports-clang-3.3 \
-                                macports-clang-3.4 \
-                                macports-clang-3.7
-    compiler.fallback-append    macports-clang-5.0
-}
 
 platform darwin {
     # On macOS, Core Text is used instead of fontconfig since Wine 1.5.10
@@ -300,9 +298,10 @@ platform darwin {
 
     # Vulkan is supported on macOS through MoltenVK since Wine 3.13, but because
     # it uses Metal it only works on 64-bit
-    if {${os.major} >= 15 && [variant_isset universal]} {
+    if {${os.major} >= 15 && ${universal_possible} && [variant_isset universal]} {
         depends_lib-append                      path:lib/libMoltenVK.dylib:MoltenVK
         depends_skip_archcheck-append           MoltenVK \
+                                                CX-MoltenVK \
                                                 VulkanSDK
         lappend merger_configure_args(x86_64)   --with-vulkan \
                                                 ac_cv_lib_soname_MoltenVK=libMoltenVK.dylib \
@@ -322,6 +321,16 @@ platform darwin {
     # use the 10.13 or greater SDK so disable the option to avoid build errors
     if {${os.major} <= 16} {
         configure.args-append        ac_cv_header_Metal_Metal_h="no"
+    }
+    
+    # wine-5.9 and later ntdll requires "_fstatat" that's not avalible until the 10.10 SDK
+    # https://github.com/wine-staging/wine-staging/commit/762c0e704003f802a5f3470aedd80799cb18c9ef
+    # While legacysupport does get wine(64) to compile, the resulting binary
+    # gets the following type of errors
+    # "preloader: Warning: failed to reserve range 00001000-00010000"
+    if {${os.major} <= 13 && ${configure.sdkroot} eq ""} {
+        depends_build-append        port:MacOSX10.11.sdk
+        configure.sdkroot           ${prefix}/Developer/SDKs/MacOSX10.11.sdk
     }
     
     notes {
@@ -382,7 +391,7 @@ post-destroot {
         ${destroot}${docdir}
 }
 
-if {[variant_isset universal]} {
+if {${universal_possible} && [variant_isset universal]} {
     notes-append "
         \n
         Wine supports both 32-bit and 64-bit now. It is compatible with your\

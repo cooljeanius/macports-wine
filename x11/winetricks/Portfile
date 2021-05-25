@@ -3,14 +3,14 @@
 PortSystem              1.0
 PortGroup               github 1.0
 
-github.setup            Winetricks winetricks 20200412
+github.setup            Winetricks winetricks 20210206
 revision                0
-checksums               rmd160  3e9a84b518e959de76d58f5a7cdea6e68cef16fb \
-                        sha256  7bce3e8aab3c3967849562685d276be2b9794aec1bc4ea71b5398759da14e25e \
-                        size    684585
+checksums               rmd160  ef85e54fcf786169913f65cacbcd3b36d3a92300 \
+                        sha256  09dd531f2572b8b85b71c70ac3ae1ac3b581fb4dc0b4426777644d42e4af85fc \
+                        size    690963
 
 categories              x11
-maintainers             {ryandesign @ryandesign} openmaintainer
+maintainers             {gcenx @gcenx}
 license                 LGPL-2.1+
 homepage                http://www.winetricks.org/
 platforms               darwin
@@ -37,13 +37,11 @@ build {}
 destroot.args           PREFIX=${prefix}
 
 post-destroot {
-    set docdir ${prefix}/share/doc/${subport}
-    xinstall -d ${destroot}${docdir}
-    xinstall -m 0644 -W ${worksrcpath} COPYING README.md ${destroot}${docdir}
+                        set docdir ${prefix}/share/doc/${subport}
+                        xinstall -d ${destroot}${docdir}
+                        xinstall -m 0644 -W ${worksrcpath} COPYING README.md ${destroot}${docdir}
 }
 
 variant zenity description {Use zenity for GUI dialog boxes} {
-    depends_run-append  port:zenity
+                        depends_run-append  port:zenity
 }
-
-#default_variants +zenity

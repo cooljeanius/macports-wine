@@ -1,33 +1,34 @@
 # macports-wine
 The current macports-ports versions of `MoltenVK`, `wine`, `wine-devel` & `wine-crossover` are not fully updated and are missing additinal required dependencies.
 <br>
-The provided `wine-*` Ports compile on Mac OSX 10.8 and later, on MacOSX 10.8 distfiles won't download but it seems that macports will handle this directly soon.\
-MoltenVK minimum requirement was lowered from 10.12 to 10.11
+The provided `wine-*` Ports compile on Mac OSX 10.8 and later.\
+MoltenVK minimum requirement was lowered from 10.12 to 10.11.
 
 ## This repository contains;
-- `cargo` Downgraded to 0.41.0 (Needed for 32Bit support)
-- `cario|cario-devel`  (added workaround to supress i386 linker warnings on macOS10.13/10.14)
-- `FAudio` FAudio-20.09
-- `gstreamer1-gst-plugins-ugly` 1.16.2 [(Added Derek Lesho patchs to fix wmv playback)](https://github.com/GloriousEggroll/proton-ge-custom/tree/proton-ge-5-MF/patches/gstreamer)
+- `FAudio` *(v21.05)*
 - `MacOSX.sdk` (Allows installation of multiple MacOSX SDKs)
-- `MoltenVK` (Installs MoltenVK.dylib & MoltenVK.framework from vulkansdk-macos-1.2.148.0)
-- `rust` Downgraded to 1.42.0 (Needed for 32Bit support)
-- `VulkanSDK` (Installs vulkansdk-macos-1.2.148.0)
+- `MoltenVK` *(v1.1.3)*
+- `CX-MoltenVK` (MoltenVK v1.1.3 with DXVK patches from [cdavis5e](https://github.com/cdavis5e))
+- `VulkanSDK` *(v1.2.170.0)*
 - `wine` Marked obsolete (swap to Winehq naming scheme)
-- `wine-stable` Wine-5.0.2
-- `wine-devel` Wine-Devel-5.18
-- `wine-staging` Wine-Staging-5.18
-- `wine-crossover` Wine-CrossOver-19.0.2 (patched to use `wine-gecko-2.47.1`)
-- `wine-gecko` Wine-Gecko-2.47.1 (/opt/wine/gecko)
-- `wine-mono` Wine-Mono-4.9.4 (/opt/wine/mono)
-- `wine-mono-5.0.0` Wine-Mono-5.0.0 (/opt/wine/mono)
-- `wine-mono-5.1.0` Wine-Mono-5.1.0 (/opt/wine/mono)
-- `Wineskin` Wineskin Winery-1.8.4.2
-- 'Mingw-w64' Updated to v8.0.0
-- 'i686-w64-mingw32-binutils' Updated to 2.35
-- 'x86_64-w64-mingw32-binutils' Updated to 2.35
+- `wine-stable` *(v6.0)*
+- `wine-devel` *(v6.9)*
+- `wine-staging` *(v6.9)*
+- `wine-crossover` *(v19.0.2 patched to use `wine-gecko-2.47.1`)*
+- `wine-gecko` *(v2.47.2)*
+- `wine-gecko-2.47.1` (Workaround for [Bugzilla 49940](https://bugs.winehq.org/show_bug.cgi?id=49940))
+- `wine-mono` *(v4.9.4)*
+- `wine-mono-5.0.0` *(v5.0.1)*
+- `wine-mono-5.1.0` *(v5.1.0)*
+- `wine-mono-5.1.1` *(v5.1.1)*
+- `wine-mono-6.0.0` *(v6.0.0)*
+- `wine-mono-6.1.1` *(v6.1.1)*
+- `Wineskin` *(v1.8.4.2)*
+- `winetricks` *(20210206)* doesn't default to +zenity
+- `jxrlib` *(v1.1)*
 
 ## MacOSX.sdk contains the following subports;
+- `subport MacOSX10.15.sdk` (MacOSX.sdk will install this SDK)
 - `subport MacOSX10.14.sdk`
 - `subport MacOSX10.13.sdk` (Add QuickTime.framework from MacOSX10.11.sdk)
 - `subport MacOSX10.12.sdk` (Add QuickTime.framework from MacOSX10.11.sdk)
@@ -66,12 +67,12 @@ This will install `wine-staging` with wow64 support, x11 support and all possibl
 ## `Wine-Mono` & `Wine-Gecko`?
 From Wine-5.0 it's possbile to have a shared version of both gecko & mono, instead of installing into each prefix the shared versions will be used.
 
-## How to use on macOS High Sierra & macOS Mojave;
+## How to use on macOS Mojave;
 Install macports as usual then apply the following patch.
 ```
-diff -u /opt/local/etc/macports/macports.conf.orig /opt/local/etc/macports/macports.conf
---- /opt/local/etc/macports/macports.conf.orig	                        2019-09-27 22:22:38.000000000 -0400
-+++ /opt/local/etc/macports/macports.conf	                            2019-09-27 22:22:14.000000000 -0400
+diff -u /opt/local/etc/macports/macports.conf /opt/local/etc/macports/macports.conf
+--- /opt/local/etc/macports/macports.conf                        2019-09-27 22:22:38.000000000 -0400
++++ /opt/local/etc/macports/macports.conf	                 2019-09-27 22:22:14.000000000 -0400
 @@ -1,6 +1,9 @@
  # MacPorts system-wide configuration file.
  # Commented-out values are defaults unless otherwise noted.
@@ -82,28 +83,14 @@ diff -u /opt/local/etc/macports/macports.conf.orig /opt/local/etc/macports/macpo
  # Directory under which MacPorts should install ports. This must be
  # where MacPorts itself is installed.
  prefix              	/opt/local
- -diff -u /opt/local/libexec/macports/lib/port1.0/portconfigure.tcl.orig /opt/local/libexec/macports/lib/port1.0/portconfigure.tcl
- --- /opt/local/libexec/macports/lib/port1.0/portconfigure.tcl.orig     2019-09-21 16:25:24.000000000 -0700
- +++ /opt/local/libexec/macports/lib/port1.0/portconfigure.tcl          2019-09-21 16:26:20.000000000 -0700
- @@ -1477,6 +1477,7 @@
-                  append_to_environment_value configure $env_var -isysroot${configure.sdkroot}
-              }
-              append_to_environment_value configure "LDFLAGS" -Wl,-syslibroot,${configure.sdkroot}
- +            append_to_environment_value configure "LDFLAGS" -Wl,-w
-          }
-  
-          # add extra flags that are conditional on whether we're building universal
 ```
 Place a copy of the `MacOSX10.13.sdk` into `/Library/Developer/CommandLineTools/SDKs/` \
 Alternatively run `port install MacOSX10.13.sdk`
 <br>
 Now follow from [How to use this repository](https://github.com/Gcenx/macports-wine-devel#how-to-use-this-repository) section
 
-## macOS Catalina & later;
+## How to use on macOS macOS Catalina & later;
 `wine-stable`, `wine-crossover`, `wine-devel` & `wine-staging` will only build wine64 on macOS Catalina\
 *I'll lightly add a custom clang-8 Portfile eventually that's required to build `wine-crossover` with wine32on64 support along with some needed patches.*
 <br>
 Just follow [How to use this repository](https://github.com/Gcenx/macports-wine-devel#how-to-use-this-repository) section
-<br>
-Found this helpful?  
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://paypal.me/gcenx?locale.x=en_US)

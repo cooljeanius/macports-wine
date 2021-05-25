@@ -11,6 +11,39 @@ description                 Wine's built-in replacement for Microsoft's .NET Fra
 name                        wine-mono
 set my_name                 wine-mono
 
+subport wine-mono-6.1.1 {
+    version         6.1.1
+    revision        0
+    
+    checksums       rmd160  a27137adc908a4eb1a262cc0502ef73d5a1894e2 \
+                    sha256  c3bab46c3e69ecdda61532c28c6a94a78aef9c750cc18dbb60151e0697714d6d \
+                    size    45702072
+    use_xz          yes
+    distname        wine-mono-${version}-x86
+}
+
+subport wine-mono-6.0.0 {
+    version         6.0.0
+    revision        0
+    
+    checksums       rmd160  0ca3bdd05b78594ac928cbefd77e9e7e4ad164e2 \
+                    sha256  3a101983af16aa2652262fff9c6b5365b884866a9d3c65ee6de0c6c1f300134c \
+                    size    45485748
+    use_xz          yes
+    distname        wine-mono-${version}-x86
+}
+
+subport wine-mono-5.1.1 {
+    version         5.1.1
+    revision        0
+    
+    checksums       rmd160  9f3b7597ee1d71d9adb656033fea173b964ebd6e \
+                    sha256  b17ac815afbf5eef768c4e8d50800be02af75c8b230d668e239bad99616caa82 \
+                    size    44710604
+    use_xz          yes
+    distname        wine-mono-${version}-x86
+}
+
 subport wine-mono-5.1.0 {
     version         5.1.0
     revision        0
@@ -35,7 +68,6 @@ subport wine-mono-5.0.0 {
     post-destroot {
     file rename ${destroot}/opt/wine/mono/wine-mono-${version} ${destroot}/opt/wine/mono/wine-mono-5.0.0
     }
-    
 }
 
 if {${subport} eq ${name}} {
