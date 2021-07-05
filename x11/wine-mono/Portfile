@@ -11,6 +11,17 @@ description                 Wine's built-in replacement for Microsoft's .NET Fra
 name                        wine-mono
 set my_name                 wine-mono
 
+subport wine-mono-6.2.0 {
+    version         6.2.0
+    revision        0
+    
+    checksums       rmd160  9bee0ce6f69cfae2450c690b57975f6c71a613b0 \
+                    sha256  f15d6a646b0bf141bd1b826dd4a273bbb6f8f1d592a2b65192281223e986ee15 \
+                    size    43071332
+    use_xz          yes
+    distname        wine-mono-${version}-x86
+}
+
 subport wine-mono-6.1.1 {
     version         6.1.1
     revision        0
@@ -57,7 +68,7 @@ subport wine-mono-5.1.0 {
 
 subport wine-mono-5.0.0 {
     version         5.0.1
-    revision        1
+    revision        0
     checksums       rmd160  700512e7bbb71c21b283e5a2f518c2fc248cd6ff \
                     sha256  c899f176cbb7b1c411abbc103e17ae05702df21a502534c6f71c891ebde7b604 \
                     size    38986060
@@ -81,7 +92,8 @@ if {${subport} eq ${name}} {
 
 set wine-mono_distfile      ${distname}${extract.suffix}
 
-master_sites                https://github.com/madewokherd/wine-mono/releases/download/wine-mono-${version}/:mono /
+master_sites                http://dl.winehq.org/wine/wine-mono/${version}/:mono \
+                            https://github.com/madewokherd/wine-mono/releases/download/wine-mono-${version}/:mono
 
 distfiles                   ${wine-mono_distfile}:mono
 

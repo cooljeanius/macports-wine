@@ -15,7 +15,7 @@ PortGroup                   active_variants 1.1
 name                        wine-devel
 conflicts                   wine wine-stable wine-staging wine-crossover
 set my_name                 wine
-version                     6.9
+version                     6.12
 revision                    0
 set branch                  [lindex [split ${version} .] 0].x
 license                     LGPL-2.1+
@@ -40,16 +40,28 @@ long_description            Wine is a compatibility layer capable of running \
                             of other methods and allowing you to cleanly \
                             integrate Windows applications into your desktop.
 
-master_sites                https://github.com/wine-mirror/wine/archive/:winesource
+# GitHub requires TLS v1.2
+if {${os.major} >= 14} {
+    master_sites                https://github.com/wine-mirror/wine/archive/:winesource
+} else {
+    depends_build-append        port:curl
+    
+    fetch {
+            # Manually download the file(s) if they don't exist
+            if {![file exists ${portdbpath}/distfiles/${dist_subdir}/${wine_distfile} ]} {
+                system -W /bin "cd ${portdbpath}/distfiles/${dist_subdir}/ && ${prefix}/bin/curl -LO https://github.com/wine-mirror/wine/archive/${wine_distfile}"
+            }
+    }
+}
 
 extract.only                ${wine_distfile}
 
 distfiles                   ${wine_distfile}:winesource
 
 checksums                   ${wine_distfile} \
-                            rmd160  60a188b4794a49789d7f886ee3f0e6e775f2fac2 \
-                            sha256  8e4098680e6cfcc65a9c081468771f10c5016c297d39a4dd373dcd5a16c4b583 \
-                            size    41096628
+                            rmd160  fbcb85f849274b8cfb44feb50a070c51539f9d86 \
+                            sha256  21eec4c4d574c7151c33b58c1ab6a3470cdcdc7f44bd2bbaa05956c4108b531d \
+                            size    41317318
 
 # Note: Most of the X11 libs are dlopen()'d
 depends_lib                 port:fontconfig \
@@ -72,7 +84,7 @@ depends_lib                 port:fontconfig \
                             port:openal-soft \
                             port:tiff \
                             port:wine-gecko \
-                            port:wine-mono-6.1.1
+                            port:wine-mono-6.2.0
 
 depends_build               port:bison \
                             port:flex \
@@ -251,25 +263,10 @@ if {${universal_possible} && [variant_isset universal]} {
     supported_archs         i386
 }
 
-# error: Xcode 3.x cannot build 16-bit code correctly
-compiler.blacklist-append   {gcc-4.2 < 5600}
-
-# llvm-gcc-4.2 doesn't respect force_align_arg_pointer; wine builds but fails to run
-# http://bugs.winehq.org/show_bug.cgi?id=28030
-compiler.blacklist-append   *llvm-gcc-4.2
-
 # wine requires clang >= 3.8
-compiler.blacklist-append   {clang < 800} \
-                            gcc-4.0 \
-                            gcc-4.2 \
-                            apple-gcc-4.2 \
-                            macports-clang-3.3 \
-                            macports-clang-3.4 \
-                            macports-clang-3.7
-compiler.fallback-append    macports-clang-5.0
-
 # FSF GCC cannot compile code using Apple's "blocks" language extensions
-compiler.blacklist-append   macports-gcc-*
+compiler.blacklist-append   {*gcc*} {clang < 800} {macports-clang-3.*}
+compiler.fallback-append    macports-clang-5.0
 
 platform darwin {
     # On macOS, Core Text is used instead of fontconfig since Wine 1.5.10

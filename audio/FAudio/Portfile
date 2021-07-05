@@ -4,7 +4,7 @@ PortSystem              1.0
 PortGroup               github 1.0
 PortGroup               cmake 1.1
 
-github.setup            FNA-XNA FAudio 21.05
+github.setup            FNA-XNA FAudio 21.07
 revision                0
 
 # zlib is the stock FAudio license, but changes to LGPL-2+ due to gstreamer1/gstreamer1-gst-plugins-base
@@ -17,18 +17,32 @@ long_description        an XAudio reimplementation that focuses solely on develo
                         fully accurate DirectX Audio runtime libraries for the FNA project,\
                         including XAudio2, X3DAudio, XAPO, and XACT3.
 
+# GitHub requires TLS v1.2
+if {${os.major} >= 14} {
+    github.tarball_from         archive
+} else {
+    depends_build-append        port:curl
+    
+    fetch {
+            # Manually download the file(s) if they don't exist
+            if {![file exists ${portdbpath}/distfiles/${dist_subdir}/${github.project}-${github.version}.tar.gz ]} {
+                system -W /bin "cd ${portdbpath}/distfiles/${dist_subdir}/ && ${prefix}/bin/curl -Lo ${github.project}-${github.version}.tar.gz https://github.com/${github.author}/${github.project}/archive/refs/tags/${github.version}.tar.gz"
+            }
+    }
+}
+
 depends_build-append    port:pkgconfig
 
 depends_lib-append      port:libsdl2 \
                         port:gstreamer1 \
                         port:gstreamer1-gst-plugins-base
 
-checksums               rmd160  c60040c7e4472f735fa6c5977f9f0879e7683546 \
-                        sha256  3325ce4bbc471691df338cd6e8bd592d93377721fde97bdfe7f3e41bbf0d6f00 \
-                        size    1139100
+checksums               rmd160  ac4d1772f5d2f248d1e97cbcabbfdf687170ecdc \
+                        sha256  30738397354d27b32e03aea648d5f8ba7ff6a63e02282b8f1533a44af2ba06b3 \
+                        size    1148544
 
 # remove set deployment target and hard-coded RPATH setting
-#patchfiles              patch-faudio-remove-deployment-target.diff
+patchfiles              patch-faudio-remove-deployment-target.diff
 
 configure.args          -DGSTREAMER=ON \
                         -DBUILD_UTILS=OFF \

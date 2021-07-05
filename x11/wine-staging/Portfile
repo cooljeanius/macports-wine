@@ -15,7 +15,7 @@ PortGroup                   active_variants 1.1
 name                        wine-staging
 conflicts                   wine wine-stable wine-devel wine-crossover
 set my_name                 wine
-version                     6.9
+version                     6.12
 revision                    0
 set branch                  [lindex [split ${version} .] 0].x
 license                     LGPL-2.1+
@@ -26,7 +26,7 @@ platforms                   darwin
 distname                    ${my_name}-${version}
 dist_subdir                 ${my_name}
 set wine_distfile           ${distname}${extract.suffix}
-set staging_version         ${version}
+set staging_version         ${version}.1
 set wine_staging_distfile   v${staging_version}${extract.suffix}
 worksrcdir                  wine-${distname}
 use_parallel_build          yes
@@ -42,8 +42,23 @@ long_description            Wine is a compatibility layer capable of running \
                             of other methods and allowing you to cleanly \
                             integrate Windows applications into your desktop.
 
-master_sites                https://github.com/wine-mirror/wine/archive/:winesource \
-                            https://github.com/wine-staging/wine-staging/archive/:stagingsource
+# GitHub requires TLS v1.2
+if {${os.major} >= 14} {
+    master_sites                https://github.com/wine-mirror/wine/archive/:winesource \
+                                https://github.com/wine-staging/wine-staging/archive/:stagingsource
+} else {
+    depends_build-append        port:curl
+    
+    fetch {
+            # Manually download the file(s) if they don't exist
+            if {![file exists ${portdbpath}/distfiles/${dist_subdir}/${wine_distfile} ]} {
+                system -W /bin "cd ${portdbpath}/distfiles/${dist_subdir}/ && ${prefix}/bin/curl -LO https://github.com/wine-mirror/wine/archive/${wine_distfile}"
+            }
+            if {![file exists ${portdbpath}/distfiles/${dist_subdir}/${wine_staging_distfile} ]} {
+                system -W /bin "cd ${portdbpath}/distfiles/${dist_subdir}/ && ${prefix}/bin/curl -LO https://github.com/wine-staging/wine-staging/archive/${wine_staging_distfile}"
+            }
+    }
+}
 
 extract.only                ${wine_distfile} \
                             ${wine_staging_distfile}
@@ -52,13 +67,13 @@ distfiles                   ${wine_distfile}:winesource \
                             ${wine_staging_distfile}:stagingsource
 
 checksums                   ${wine_distfile} \
-                            rmd160  60a188b4794a49789d7f886ee3f0e6e775f2fac2 \
-                            sha256  8e4098680e6cfcc65a9c081468771f10c5016c297d39a4dd373dcd5a16c4b583 \
-                            size    41096628 \
+                            rmd160  fbcb85f849274b8cfb44feb50a070c51539f9d86 \
+                            sha256  21eec4c4d574c7151c33b58c1ab6a3470cdcdc7f44bd2bbaa05956c4108b531d \
+                            size    41317318 \
                             ${wine_staging_distfile} \
-                            rmd160  6859717ba196ab7c4614ea72a6d7c4717017c6cd \
-                            sha256  e6d66bde51ccab97adb2ea968e8713e64e28f427abfafa7e4b64fceb3a69e211 \
-                            size    9687986
+                            rmd160  4cf7593a2a555a45808a751b9b95202d8d4ee9b5 \
+                            sha256  af5151a99f878512037f482974813fb20cef59d072acf190f48b06c23b2167c3 \
+                            size    9658943
 
 # Note: Most of the X11 libs are dlopen()'d
 depends_lib                 port:fontconfig \
@@ -82,7 +97,7 @@ depends_lib                 port:fontconfig \
                             port:openal-soft \
                             port:tiff \
                             port:wine-gecko \
-                            port:wine-mono-6.1.1
+                            port:wine-mono-6.2.0
 
 depends_build               port:autoconf \
                             port:bison \
@@ -93,11 +108,6 @@ depends_build               port:autoconf \
 post-extract {
     system -W /bin "${workpath}/wine-staging-${staging_version}/patches/patchinstall.sh DESTDIR=${worksrcpath} --all"
 }
-
-patch.pre_args              -p1
-
-# https://bugs.winehq.org/show_bug.cgi?id=34166#c103
-patchfiles-append           noflicker.diff
 
 pre-configure {
     if {[variant_exists universal] && [variant_isset universal]} {
@@ -268,25 +278,10 @@ if {${universal_possible} && [variant_isset universal]} {
     supported_archs         i386
 }
 
-# error: Xcode 3.x cannot build 16-bit code correctly
-compiler.blacklist-append   {gcc-4.2 < 5600}
-
-# llvm-gcc-4.2 doesn't respect force_align_arg_pointer; wine builds but fails to run
-# http://bugs.winehq.org/show_bug.cgi?id=28030
-compiler.blacklist-append   *llvm-gcc-4.2
-
 # wine requires clang >= 3.8
-compiler.blacklist-append   {clang < 800} \
-                            gcc-4.0 \
-                            gcc-4.2 \
-                            apple-gcc-4.2 \
-                            macports-clang-3.3 \
-                            macports-clang-3.4 \
-                            macports-clang-3.7
-compiler.fallback-append    macports-clang-5.0
-
 # FSF GCC cannot compile code using Apple's "blocks" language extensions
-compiler.blacklist-append   macports-gcc-*
+compiler.blacklist-append   {*gcc*} {clang < 800} {macports-clang-3.*}
+compiler.fallback-append    macports-clang-5.0
 
 platform darwin {
     # On macOS, Core Text is used instead of fontconfig since Wine 1.5.10
