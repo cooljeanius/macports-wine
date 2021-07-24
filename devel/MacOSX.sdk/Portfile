@@ -149,7 +149,12 @@ proc check_disk_space {path requested_bytes} {
 }
 
 set sdk_dir                 ${prefix}/Developer/SDKs
-set sdk_dir2                /Library/Developer/CommandLineTools/SDKs
+
+if {${os.major} > 11} {
+    set sdk_dir2            /Library/Developer/CommandLineTools/SDKs
+} else {
+    set sdk_dir2            /Developer/SDKs
+}
 
 use_configure               no
 
