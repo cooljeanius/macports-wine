@@ -8,7 +8,7 @@ github.setup                gcenx game-porting-toolkit 1.1 Game-Porting-Toolkit-
 
 name                        game-porting-toolkit
 set my_name                 wine
-revision                    0
+revision                    2
 platforms                   {darwin >= 23}
 license                     LGPL-2.1+
 categories                  devel
@@ -45,9 +45,28 @@ depends_lib \
     port:libsdl2
 
 depends_run \
-    port:mingw-w64-wine-gecko-2.47.2
+    port:mingw-w64-wine-gecko-2.47.2 \
+    port:mingw-w64-wine-mono-7.4.1
 
 patch.pre_args -p1
+
+# Replace CXHACK-21217 with upstreams fix
+patchfiles-append \
+    0001-remove-cxhack-21217.diff
+
+# Default to Win10 19043
+patchfiles-append \
+    0002-default-win10-19043.diff
+
+# Update to wine-mono-7.4.1
+patchfiles-append \
+    0003-mscoree-update-wine-mono-to-7.4.1.diff
+
+post-patch {
+    # https://gitlab.winehq.org/wine/wine/-/commit/c7a97b5d5d56ef00a0061b75412c6e0e489fdc99
+    reinplace -q "/PKG_CONFIG_PATH/d"       ${worksrcpath}/configure
+    reinplace -q "s|;(cw)||g"               ${worksrcpath}/loader/wine.inf.in
+}
 
 configure.checks.implicit_function_declaration.whitelist-append \
     __clear_cache \
@@ -121,17 +140,21 @@ configure.args.x86_64 \
 configure.ldflags-append    -Wl,-rpath,${compiler.library_path} -Wl,-rpath,${prefix}/libexec/${name}/lib/external
 
 # Xcode15 linker requires -ld_classic to enable legacy behaviours required to build wine
-set xcode_ok [expr { ${xcodeversion} ne "none" && [vercmp ${xcodeversion} >= "15.0"] } ]
-set clt_ok   [expr { ${xcodeversion} eq "none" && ${xcodecltversion} ne "none" && [vercmp ${xcodecltversion} >= "15.0"] } ]
-if { ${xcode_ok} || ${clt_ok} } {
+set xcode150 [expr { ${xcodeversion} ne "none" && [vercmp ${xcodeversion} >= "15.0"] } ]
+set clt150   [expr { ${xcodeversion} eq "none" && ${xcodecltversion} ne "none" && [vercmp ${xcodecltversion} >= "15.0"] } ]
+if { ${xcode150} || ${clt150} } {
     configure.ldflags-prepend   -Wl,-ld_classic
 }
 
 # Xcode15.3 default SDK causes the build to fail so fallback to a working SDK
-configure.sdk_version       13
-if {${configure.sdkroot} eq ""} {
-    depends_build-append    port:MacOSX13.sdk
-    configure.sdkroot       ${prefix}/Developer/SDKs/MacOSX13.sdk
+set xcode153 [expr { ${xcodeversion} ne "none" && [vercmp ${xcodeversion} >= "15.3"] } ]
+set clt_153   [expr { ${xcodeversion} eq "none" && ${xcodecltversion} ne "none" && [vercmp ${xcodecltversion} >= "15.3"] } ]
+if { ${xcode153} || ${clt153} } {
+    configure.sdk_version       13
+    if {${configure.sdkroot} eq ""} {
+        depends_build-append    port:MacOSX13.sdk
+        configure.sdkroot       ${prefix}/Developer/SDKs/MacOSX13.sdk
+    }
 }
 
 # Use an older deployment target to avoid new dyld behaviors.
@@ -146,7 +169,9 @@ variant gstreamer description {Build ${subport} with GStreamer, for multimedia s
         port:gstreamer1-gst-plugins-bad \
         port:gstreamer1-gst-plugins-ugly \
         port:gstreamer1-gst-libav
-    configure.args-replace  --without-gstreamer --with-gstreamer
+    configure.args-delete           --without-gstreamer
+    configure.args.i386-append      --without-gstreamer
+    configure.args.x86_64-append    --with-gstreamer
 }
 
 default_variants            +gstreamer
@@ -179,7 +204,7 @@ configure {
     configure.pre_args.x86_64-delete --enable-win64
     configure.args.x86_64
     set configure.dir ${worksrcpath}-i386
-    configure.args ${configure.pre_args.i386} ${configure.args}
+    configure.args ${configure.pre_args.i386} ${configure.args} ${configure.args.i386}
     portconfigure::configure_main
 }
 
@@ -200,8 +225,9 @@ destroot {
 }
 
 post-destroot {
-    # Avoid downloading wine-gecko-2.47.2-x86.msi & wine-gecko-2.47.2-x86_64.msi
+    # Avoid downloading wine-gecko & wine-mono
     ln -sf ${prefix}/share/wine/gecko ${destroot}${prefix}/libexec/${name}/share/wine/gecko
+    ln -sf ${prefix}/share/wine/mono ${destroot}${prefix}/libexec/${name}/share/wine/mono
 
     # Install d3dmetal files into place
     system "ditto ${prefix}/libexec/d3dmetal/redist/lib ${destroot}${prefix}/libexec/${name}/lib"
