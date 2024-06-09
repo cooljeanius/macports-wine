@@ -1,11 +1,13 @@
+# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
+
 PortSystem          1.0
 PortGroup           github 1.0
 
-github.setup        The-Wineskin-Project Winery 2.0
+github.setup        The-Wineskin-Project Winery 2.0.2
 github.tarball_from releases
 revision            0
 name                wineskin
-platforms           {darwin >= 19}
+platforms           {darwin >= 19.4}
 license             LGPL-2.1
 categories          emulators
 
@@ -14,37 +16,24 @@ maintainers         {@gcenx}
 homepage            https://github.com/Gcenx/WineskinServer/
 
 description         ${name} is a user-friendly tool used to make ports of Microsoft Windows software to Apple's macOS.
-long_description    ${description}
+long_description    {*}${description}
 
 distname            wineskin-winery-v${version}
 use_xz              yes
 
-checksums           rmd160  b0f4e6e8a6883520f270137d87c18bb262b17332 \
-                    sha256  a065827ab7d30f84a631d0c26431a3c6f2576471f84501daf6455334c5eb7c79 \
-                    size    921052
+checksums           rmd160  8c877ad59db25d23aa891f157e3c4075fe2e108c \
+                    sha256  51e088f5c22deadd60069656e91fd98c4a5855492bca1038b5753bd251df9981 \
+                    size    921396
 
 use_configure       no
 build {}
 
-notes "
-    Currently ${name} has a bug where it won't created a needed directory\
-    You need to manually create ~/Applications/Wineskin to avoid this bug
-"
-
 destroot {
-    file copy "${workpath}/Wineskin Winery.app" "${destroot}${applications_dir}/Wineskin Winery.app"
+    move "${workpath}/Wineskin Winery.app" "${destroot}${applications_dir}/Wineskin Winery.app"
+    system -W ${destroot}${applications_dir} "/usr/bin/codesign --deep --force --sign - 'Wineskin Winery.app'"
 }
 
-activate {
-    portactivate::activate_main
-    system "/usr/bin/xattr -drs com.apple.quarantine '${applications_dir}/Wineskin Winery.app'"
-    system "/usr/bin/codesign --force --deep -s - '${applications_dir}/Wineskin Winery.app'"
-}
-
-deactivate {
-    portdeactivate::deactivate_main
-    if {[file exists "${applications_dir}/Wineskin Winery.app" ]} {
-        ui_msg "--->  Removing ${applications_dir}/Wineskin Winery.app"
-        delete -force "${applications_dir}/Wineskin Winery.app"
-    }
-}
+notes "
+    Currently ${name} has a bug where it won't create a needed directory\
+    you'll need to manually create it ~/Applications/Wineskin.
+"

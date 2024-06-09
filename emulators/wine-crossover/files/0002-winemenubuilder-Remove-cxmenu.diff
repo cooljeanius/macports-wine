@@ -1,14 +1,14 @@
-From ec56c10882a475051cf5cd6ce30c4577a6a05734 Mon Sep 17 00:00:00 2001
+From 9d93b60e5e24a00bcaad84f2c77c35cf157f8d87 Mon Sep 17 00:00:00 2001
 From: Dean M Greer <38226388+Gcenx@users.noreply.github.com>
-Date: Sun, 23 Oct 2022 20:29:14 -0400
+Date: Wed, 16 Aug 2023 19:25:05 -0400
 Subject: [PATCH] winemenubuilder: Remove cxmenu
 
 ---
  programs/winemenubuilder/Makefile.in       |   1 -
  programs/winemenubuilder/cxmenu.c          | 385 ---------------------
  programs/winemenubuilder/cxmenu.h          |  42 ---
- programs/winemenubuilder/winemenubuilder.c |  59 +---
- 4 files changed, 2 insertions(+), 485 deletions(-)
+ programs/winemenubuilder/winemenubuilder.c | 119 +++----
+ 4 files changed, 54 insertions(+), 493 deletions(-)
  delete mode 100644 programs/winemenubuilder/cxmenu.c
  delete mode 100644 programs/winemenubuilder/cxmenu.h
 
@@ -24,7 +24,7 @@ index cbf7c403..12326d1e 100644
  	winemenubuilder.c
 diff --git a/programs/winemenubuilder/cxmenu.c b/programs/winemenubuilder/cxmenu.c
 deleted file mode 100644
-index 36c4e992..00000000
+index 511a6b4e..00000000
 --- a/programs/winemenubuilder/cxmenu.c
 +++ /dev/null
 @@ -1,385 +0,0 @@
@@ -358,7 +358,7 @@ index 36c4e992..00000000
 -        {
 -            if (GetLastError() != ERROR_NO_MORE_FILES)
 -            {
--                WINE_TRACE("got error %d while scanning the '%s' directory\n", GetLastError(), wine_dbgstr_w(dir));
+-                WINE_TRACE("got error %lu while scanning the '%s' directory\n", GetLastError(), wine_dbgstr_w(dir));
 -                rc = FALSE;
 -            }
 -            FindClose(hFind);
@@ -386,7 +386,7 @@ index 36c4e992..00000000
 -    {
 -        if (!SHGetSpecialFolderPathW(0, dir, locations[i], FALSE))
 -        {
--            WINE_TRACE("unable to get the path of folder %08x\n", locations[i]);
+-            WINE_TRACE("unable to get the path of folder %08lx\n", locations[i]);
 -            /* Some special folders are not defined in some bottles
 -             * so this is not an error
 -             */
@@ -397,7 +397,7 @@ index 36c4e992..00000000
 -        if (len >= MAX_PATH)
 -        {
 -            /* We've just trashed memory! Hopefully we are OK */
--            WINE_TRACE("Ignoring special folder %08x because its path is too long: %s\n", locations[i], wine_dbgstr_w(dir));
+-            WINE_TRACE("Ignoring special folder %08lx because its path is too long: %s\n", locations[i], wine_dbgstr_w(dir));
 -            rc = FALSE;
 -            continue;
 -        }
@@ -462,7 +462,7 @@ index 0b892254..00000000
 -
 -#endif /* _CXMENU_ */
 diff --git a/programs/winemenubuilder/winemenubuilder.c b/programs/winemenubuilder/winemenubuilder.c
-index 3775606e..6035eec1 100644
+index 3775606e..ae657d87 100644
 --- a/programs/winemenubuilder/winemenubuilder.c
 +++ b/programs/winemenubuilder/winemenubuilder.c
 @@ -87,8 +87,6 @@
@@ -474,6 +474,15 @@ index 3775606e..6035eec1 100644
  WINE_DEFAULT_DEBUG_CHANNEL(menubuilder);
  
  #define in_desktop_dir(csidl) ((csidl)==CSIDL_DESKTOPDIRECTORY || \
+@@ -299,7 +297,7 @@ static BOOL create_directories(WCHAR *directory)
+     return CreateDirectoryW( directory, NULL ) || GetLastError() == ERROR_ALREADY_EXISTS;
+ }
+ 
+-char* wchars_to_utf8_chars(LPCWSTR string)
++static char* wchars_to_utf8_chars(LPCWSTR string)
+ {
+     char *ret;
+     INT size = WideCharToMultiByte(CP_UTF8, 0, string, -1, NULL, 0, NULL, NULL);
 @@ -437,9 +435,7 @@ static HRESULT convert_to_native_icon(IStream *icoFile, int *indices, int numInd
              WINE_ERR("error 0x%08lX setting destination bitmap size\n", hr);
              goto endloop;
@@ -494,7 +503,82 @@ index 3775606e..6035eec1 100644
      if (FAILED(hr) && !bWait)
      {
          hr = open_default_icon(ppStream);
-@@ -2258,14 +2252,6 @@ static BOOL InvokeShellLinker( IShellLinkW *sl, LPCWSTR link, BOOL bWait )
+@@ -1980,6 +1974,46 @@ static BOOL is_extension_banned(LPCWSTR extension)
+     return FALSE;
+ }
+ 
++static BOOL on_exclude_list(const WCHAR *command)
++{
++    static const WCHAR default_exclude_list[] = L"ieframe.dll\0iexplore.exe\0notepad.exe\0"
++                                                L"winebrowser.exe\0wordpad.exe\0";
++    WCHAR *exclude_list = NULL;
++    const WCHAR *pattern;
++    HKEY key;
++    DWORD size;
++    LSTATUS status;
++    BOOL found = FALSE;
++
++    if ((key = open_associations_reg_key()))
++    {
++        status = RegGetValueW(key, NULL, L"Exclude", RRF_RT_REG_MULTI_SZ, NULL, NULL, &size);
++        if (status == ERROR_SUCCESS)
++        {
++            exclude_list = xmalloc(size);
++            status = RegGetValueW(key, NULL, L"Exclude", RRF_RT_REG_MULTI_SZ, NULL, exclude_list, &size);
++            if (status != ERROR_SUCCESS)
++            {
++                heap_free(exclude_list);
++                exclude_list = NULL;
++            }
++        }
++        RegCloseKey(key);
++    }
++
++    for (pattern = exclude_list ? exclude_list : default_exclude_list; *pattern; pattern += wcslen(pattern) + 1)
++    {
++        if (wcsstr(command, pattern))
++        {
++            found = TRUE;
++            break;
++        }
++    }
++
++    heap_free(exclude_list);
++    return found;
++}
++
+ static WCHAR *get_special_mime_type(LPCWSTR extension)
+ {
+     if (!wcsicmp(extension, L".lnk"))
+@@ -2060,6 +2094,15 @@ static BOOL generate_associations(const WCHAR *packages_dir, const WCHAR *applic
+             WCHAR *mimeProgId = NULL;
+             struct rb_string_entry *entry;
+ 
++            commandW = assoc_query(ASSOCSTR_COMMAND, extensionW, L"open");
++            if (commandW == NULL)
++                /* no command => no application is associated */
++                goto end;
++
++            if (on_exclude_list(commandW))
++                /* command is on the exclude list => desktop integration is not desirable */
++                goto end;
++
+             wcslwr(extensionW);
+             friendlyDocNameW = assoc_query(ASSOCSTR_FRIENDLYDOCNAME, extensionW, NULL);
+ 
+@@ -2099,11 +2142,6 @@ static BOOL generate_associations(const WCHAR *packages_dir, const WCHAR *applic
+                 hasChanged = TRUE;
+             }
+ 
+-            commandW = assoc_query(ASSOCSTR_COMMAND, extensionW, L"open");
+-            if (commandW == NULL)
+-                /* no command => no application is associated */
+-                goto end;
+-
+             executableW = assoc_query(ASSOCSTR_EXECUTABLE, extensionW, L"open");
+             if (executableW)
+                 openWithIcon = compute_native_identifier(0, executableW, NULL);
+@@ -2258,14 +2296,6 @@ static BOOL InvokeShellLinker( IShellLinkW *sl, LPCWSTR link, BOOL bWait )
          goto cleanup;
      }
  
@@ -509,7 +593,7 @@ index 3775606e..6035eec1 100644
      if (in_desktop_dir(csidl))
      {
          if (csidl == CSIDL_COMMON_DESKTOPDIRECTORY || !szPath[0])
-@@ -2381,16 +2367,6 @@ static BOOL InvokeShellLinkerForURL( IUniformResourceLocatorW *url, LPCWSTR link
+@@ -2381,16 +2411,6 @@ static BOOL InvokeShellLinkerForURL( IUniformResourceLocatorW *url, LPCWSTR link
          WINE_ERR("failed wait for semaphore\n");
          goto cleanup;
      }
@@ -526,7 +610,25 @@ index 3775606e..6035eec1 100644
      if (in_desktop_dir(csidl))
          r = !write_desktop_entry(NULL, NULL, link_name, L"start.exe", urlPath, NULL, NULL, icon_name, NULL);
      else
-@@ -2832,23 +2808,6 @@ static BOOL associations_enabled(void)
+@@ -2454,7 +2474,7 @@ done:
+     return ret;
+ }
+ 
+-BOOL Process_Link( LPCWSTR linkname, BOOL bWait )
++static BOOL Process_Link( LPCWSTR linkname, BOOL bWait )
+ {
+     IShellLinkW *sl;
+     IPersistFile *pf;
+@@ -2515,7 +2535,7 @@ BOOL Process_Link( LPCWSTR linkname, BOOL bWait )
+     return !r;
+ }
+ 
+-BOOL Process_URL( LPCWSTR urlname, BOOL bWait )
++static BOOL Process_URL( LPCWSTR urlname, BOOL bWait )
+ {
+     IUniformResourceLocatorW *url;
+     IPersistFile *pf;
+@@ -2832,23 +2852,6 @@ static BOOL associations_enabled(void)
      return ret;
  }
  
@@ -550,7 +652,7 @@ index 3775606e..6035eec1 100644
  /***********************************************************************
   *
   *           wWinMain
-@@ -2861,9 +2820,6 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE prev, LPWSTR cmdline, int sh
+@@ -2861,9 +2864,6 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE prev, LPWSTR cmdline, int sh
      HRESULT hr;
      int ret = 0;
  
@@ -560,7 +662,7 @@ index 3775606e..6035eec1 100644
      if (!init_xdg())
          return 1;
  
-@@ -2881,13 +2837,12 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE prev, LPWSTR cmdline, int sh
+@@ -2881,13 +2881,12 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE prev, LPWSTR cmdline, int sh
  	    break;
          if( !wcscmp( token, L"-a" ) )
          {
@@ -575,7 +677,7 @@ index 3775606e..6035eec1 100644
              cleanup_menus();
              continue;
          }
-@@ -2905,16 +2860,6 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE prev, LPWSTR cmdline, int sh
+@@ -2905,16 +2904,6 @@ int PASCAL wWinMain (HINSTANCE hInstance, HINSTANCE prev, LPWSTR cmdline, int sh
                       thumbnail_lnk(lnkFile, outputFile);
              }
          }
@@ -593,5 +695,5 @@ index 3775606e..6035eec1 100644
  	{
  	    WINE_ERR( "unknown option %s\n", wine_dbgstr_w(token) );
 -- 
-2.37.1 (Apple Git-137.1)
+2.39.3 (Apple Git-145)
 

@@ -2,8 +2,9 @@
 
 PortSystem          1.0
 PortGroup           gitlab 1.0
+PortGroup           stub 1.0
 
-gitlab.setup        gstreamer gstreamer 1.24.0
+gitlab.setup        gstreamer gstreamer 1.24.3
 gitlab.instance     https://gitlab.freedesktop.org/gstreamer
 revision            0
 
@@ -13,58 +14,21 @@ maintainers         {@gcenx}
 description         GStreamer is a streaming media framework
 long_description    {*}${description}
 
-supported_archs     arm64 x86_64
-platforms           {darwin >= 15}
+supported_archs     noarch
+platforms           {darwin >= 17}
 license             LGPL-2+
 
 homepage            https://gstreamer.freedesktop.org
 master_sites        ${homepage}/data/pkg/osx/${version}/
 
-distname            gstreamer-1.0-${version}-universal
-set headername      gstreamer-1.0-devel-${version}-universal
-extract.suffix      .pkg
+depends_run         port:gstreamer-runtime \
+                    port:gstreamer-development
 
-distfiles           ${distname}${extract.suffix} \
-                    ${headername}${extract.suffix}
-
-checksums \
-    ${distname}${extract.suffix} \
-    rmd160  0c5002d3482461d3673aa6b01def24f3492cc9e6 \
-    sha256  8c59ff2e454620c90fc27a4e17ef18d35963097ae57829471e8ffb2fd8f32521 \
-    size    177452250 \
-    ${headername}${extract.suffix} \
-    rmd160  2fbf658d852bf97dad30e24f8337b968478b6568 \
-    sha256  a04f1e74a219c79ea5fe6be679a75dd3d23278326fe096bd21878086a6d9a8e9 \
-    size    534891062
-
-extract             {}
-use_configure       no
-
-build {
-    if {![file exists /Library/Frameworks/GStreamer.framework ]} {
-        elevateToRoot "installer"
-        ui_msg "--->  Installing ${distname}${extract.suffix}"
-        system -W ${distpath} "installer -pkg ${distname}${extract.suffix} -target /"
-        ui_msg "--->  Installing ${headername}${extract.suffix}"
-        system -W ${distpath} "installer -pkg ${headername}${extract.suffix} -target /"
+post-deactivate {
+    if {![catch {set installed [lindex [registry_active gstreamer-runtime] 0]}]} {
+        registry_deactivate_composite gstreamer-runtime "" [list ports_nodepcheck 1]
+    }
+    if {![catch {set installed [lindex [registry_active gstreamer-development] 0]}]} {
+        registry_deactivate_composite gstreamer-development "" [list ports_nodepcheck 1]
     }
 }
-
-destroot {
-    set docdir ${destroot}${prefix}/share/doc/${subport}
-    xinstall -d ${docdir}
-    system "echo ${subport} is a stub port > ${docdir}/README"
-}
-
-uninstall {
-    portuninstall::uninstall_main
-    if {[file exists /Library/Frameworks/GStreamer.framework ]} {
-        ui_msg "--->  Removing GStreamer.framework"
-        delete -force /Library/Frameworks/GStreamer.framework
-    }
-}
-
-variant universal {}
-configure.universal_archs {*}${supported_archs}
-default_variants +universal
-variant_set universal
