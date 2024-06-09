@@ -1,16 +1,15 @@
 # -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
 
 PortSystem                  1.0
-PortGroup                   compiler_blacklist_versions 1.0
 PortGroup                   muniversal 1.1
 
 # Keep the wine-stable, wine-devel and wine-crossover portfiles as similar as possible.
 
 name                        wine-devel
-conflicts                   wine-stable wine-stable-6.0.4 wine-stable-7.0.2 wine-devel-6.8 wine-devel-7.22 wine-devel-8.21 wine-staging wine-crossover
+conflicts                   wine-stable wine-staging wine-crossover
 set my_name                 wine
-version                     9.6
-revision                    0
+version                     9.10
+revision                    1
 platforms                   {darwin >= 19}
 set branch                  [lindex [split ${version} .] 0].x
 license                     LGPL-2.1+
@@ -44,16 +43,16 @@ distfiles \
 
 checksums \
     ${wine_distfile} \
-    rmd160  1311c16f013556fce96e7516f81bb2048950f46e \
-    sha256  914a23385c6d965e098db2d9de260bc9b0188a7bb0241ae9acbdf3a51eba4f66 \
-    size    49334076
+    rmd160  1c78a5448e9f5b67f2596ddad047924d26d75e7e \
+    sha256  21888fe11fad645934a5a03c9a4c515821d293af2341321e129e1f779945a24f \
+    size    49438484
 
 depends_build \
     port:bison \
     bin:flex:flex \
     port:gettext \
     port:mingw-w64 \
-    port:pkgconfig
+    path:bin/pkg-config:pkgconfig
 
 depends_lib \
     port:freetype \
@@ -66,19 +65,16 @@ depends_lib \
 
 depends_run \
     port:mingw-w64-wine-gecko-2.47.4 \
-    port:mingw-w64-wine-mono-9.0.0
+    port:mingw-w64-wine-mono-9.1.0
 
-patch.pre_args -p1
+patch.pre_args-replace -p0 -p1
 
-# https://bugs.winehq.org/show_bug.cgi?id=34166#c103
 patchfiles-append \
     0001-winemac.drv-No-Flicker-patch.diff
 
-post-patch {
-    # https://gitlab.winehq.org/wine/wine/-/commit/c7a97b5d5d56ef00a0061b75412c6e0e489fdc99
-    reinplace -q "/PKG_CONFIG_LIBDIR/d"     ${worksrcpath}/configure
-    reinplace -q "/PKG_CONFIG_LIBDIR/d"     ${worksrcpath}/configure.ac
-}
+# Some required hacks to make wine work better on macOS & Rosetta2
+patchfiles-append \
+    macos_hacks.diff
 
 configure.checks.implicit_function_declaration.whitelist-append \
     __clear_cache \
@@ -93,11 +89,10 @@ configure.checks.implicit_function_declaration.whitelist-append \
 configure.install \
     ${worksrcpath}/tools/install-sh
 
-configure.pre_args.x86_64 \
-    --enable-archs=i386,x86_64 \
-    --enable-win64
-
 configure.args \
+    --enable-archs=i386,x86_64 \
+    --enable-win64 \
+    --disable-tests \
     --without-alsa \
     --without-capi \
     --with-coreaudio \
@@ -128,38 +123,21 @@ configure.args \
     --with-unwind \
     --without-usb \
     --without-v4l2 \
+    --with-vulkan \
     --without-wayland \
     --without-x
 
-configure.args.x86_64   --with-vulkan
-configure.env.x86_64    ac_cv_lib_soname_vulkan=
+configure.env-append    ac_cv_lib_soname_vulkan=
 
-# Standard dlopen() is used so wine(64) no longer finds dylibs, since wine-5.6
-# https://bugs.winehq.org/show_bug.cgi?id=49199
+# We need to tell the linker to add MacPorts to the rpath stack.
 configure.ldflags-append    -Wl,-rpath,${compiler.library_path}
-
-# Xcode15 linker requires -ld_classic to enable legacy behaviours required to build wine
-set xcode150 [expr { ${xcodeversion} ne "none" && [vercmp ${xcodeversion} >= "15.0"] } ]
-set clt150   [expr { ${xcodeversion} eq "none" && ${xcodecltversion} ne "none" && [vercmp ${xcodecltversion} >= "15.0"] } ]
-if { ${xcode150} || ${clt150} } {
-    configure.ldflags-prepend   -Wl,-ld_classic
-}
-
-if {${os.major} > 18} {
-    # Use an older deployment target to avoid new dyld behaviors.
-    macosx_deployment_target 10.14
-}
-
-# wine requires clang >= 3.8
-# FSF GCC cannot compile code using Apple's "blocks" language extensions
-compiler.blacklist-append   {*gcc*} {clang < 800} {macports-clang-3.*}
 
 subport wine-staging {
     name \
         wine-staging
 
     conflicts \
-        wine-stable wine-stable-6.0.4 wine-stable-7.0.2 wine-devel wine-devel-6.8 wine-devel-7.22 wine-devel-8.21 wine-crossover
+        wine-stable wine-devel wine-crossover
 
     set staging_version \
         ${version}
@@ -174,15 +152,15 @@ subport wine-staging {
 
     checksums-append \
         ${wine_staging_distfile} \
-        rmd160  49cf464f21b7020b7d91e2cb7d83c0ed53d51a92 \
-        sha256  6d147e72642d1268684465a383b5c64f5542f011c7745d085de4933df638bd1f \
-        size    9522775
+        rmd160  b3418e632fb9163a9242f9b3bc44f08c4eed5b8b \
+        sha256  79af9a7f18cc975a38ec831903bd62cf509e9445600600aac5d5ed8569bb75d5 \
+        size    9436968
 
     depends_extract-append \
         port:autoconf
 
     # Running "patchinstall.py" before 'patchfiles' get inherited from wine-devel
-    # "eventfd_synchronization" doesn't work on macOS (CX version does)'
+    # "eventfd_synchronization" doesn't work on macOS (CX version does)
     # "winemac.drv-no-flicker-patch" gets inherited from wine-devel
     post-extract {
         system -W ${worksrcpath} \
@@ -190,17 +168,28 @@ subport wine-staging {
     }
 }
 
-variant gphoto description {Build ${subport} with support for digital cameras} {
+# This makes destroot take an extreme amout of time
+variant dev description "Install ${subport} development environment" {
+    build.target            all
+    destroot.target-append  install-dev
+}
+
+variant gphoto description "Build ${subport} with support for digital cameras" {
     depends_lib-append      port:libgphoto2
     configure.args-replace  --without-gphoto --with-gphoto
 }
 
-variant gstreamer description {Build ${subport} with GStreamer, for multimedia support} {
+variant gstreamer description "Build ${subport} with GStreamer, for multimedia support" {
     depends_lib-append      port:gstreamer1-gst-plugins-good port:gstreamer1-gst-libav
     configure.args-replace  --without-gstreamer --with-gstreamer
 }
 
-default_variants            +gstreamer +universal
+variant kerberos description "Build ${subport} with Kerberos, for network authentication protocol support" {
+    depends_lib-append      port:kerberos5
+    configure.args-replace  --without-krb5 --with-krb5
+}
+
+default_variants            +gstreamer
 
 triplet.add_build           cross
 triplet.add_host            none
@@ -212,11 +201,8 @@ muniversal.arch_flag        no
 muniversal.arch_compiler    yes
 configure.ldflags-delete    -L${compiler.library_path}
 configure.optflags          -g -O2
-configure.env-append        i386_CFLAGS=${configure.optflags}
-configure.env-append        x86_64_CFLAGS=${configure.optflags}
-
-# Reduce compilation warnings
-configure.cflags-append     -Wno-deprecated-declarations
+# gcc14.1 now sets -Werror-incompatible-pointer-types
+configure.env-append        "CROSSCFLAGS=${configure.optflags} -Wno-incompatible-pointer-types"
 
 # Were only installing wine not the development files
 destroot.target             install-lib
@@ -233,8 +219,11 @@ post-destroot {
         ${destroot}${docdir}
 }
 
-platform darwin arm {
-    configure.pre_args.x86_64-prepend [muniversal::get_triplets x86_64]
+pre-activate {
+	if {${os.major} == 19 && ${os.minor} < 4 && ${os.platform} eq "darwin"} {
+		ui_error "You must first update to macOS 10.15.4."
+		return -code error "You must first update to macOS 10.15.4."
+	}
 }
 
 livecheck.url               ${homepage}
