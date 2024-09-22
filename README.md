@@ -4,20 +4,20 @@ This branch only supports macOS Catalina 10.15.4 & later.\
 For older versions of macOS use the [legacy](https://github.com/Gcenx/macports-wine/tree/legacy) branch
 
 ## This repository contains
-- `CrossOver`               *(24.0.3)*
+- `CrossOver`               *(v24.0.4)*
 - `crossovertricks`         *(winetricks wrapper for CrossOver)*
-- `gstreamer1`              *(1.24.3)*
-- `gstreamer.framework`     *(stub)*
-- `gstreamer-runtime`       *(1.24.3)*
-- `gstreamer-development`   *(1.24.3)*
-- `libinotify`              *(20230908)*
+- `D3DMetal`                *(v2.0 beta1)*
+- `game-porting-toolkit`    *(v1.1)*
+- `gstreamer.framework`     *(v1.24.7)*
+- `gstreamer-runtime`       *(v1.24.7)*
+- `gstreamer-development`   *(v1.24.7)*
+- `libinotify`              *(v20230908)*
 - `MacOSX.sdk`              *(Multiple MacOSX SDKs)*
 - `mingw-w64-pkgconfig`
 - `wine-stable`             *(v9.0)*
-- `wine-devel`              *(v9.10)*
-- `wine-staging`            *(v9.10)*
-- `wine-crossover`          *(v23.7.1)*
-- `winetricks`              *(20240320)*
+- `wine-devel`              *(v9.17)*
+- `wine-staging`            *(v9.17)*
+- `winetricks`              *(v20240704)*
 - `wineskin`                *(v2.0.2)*
 
 ## How to use this repository
@@ -25,5 +25,10 @@ After installing macports you need a modern version of `git`\
 git clone the repository into /opt then follow [4.6. Local Portfile Repositories](https://guide.macports.org/#development.local-repositories)\
 Next run `port -v sync` you can now install any of the provided Ports.
 
-### Prior project history
+### Force x86_64
+Due to macports-ports bugs we need to force MacPorts to only install for x86_64
+
+> echo "build_arch x86_64" | sudo tee -a /opt/local/etc/macports/macports.conf >/dev/null
+
+## Prior project history
 You can find the prior commit history [here](https://github.com/Gcenx/macports-wine/tree/master)

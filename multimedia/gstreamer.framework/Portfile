@@ -1,34 +1,35 @@
 # -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
 
 PortSystem          1.0
-PortGroup           gitlab 1.0
-PortGroup           stub 1.0
+PortGroup           github 1.0
 
-gitlab.setup        gstreamer gstreamer 1.24.3
-gitlab.instance     https://gitlab.freedesktop.org/gstreamer
+github.setup        Kegworks-App gstreamer 1.24.7
+github.tarball_from releases
 revision            0
 
-name                ${gitlab.project}.framework
+name                ${github.project}.framework
 categories          multimedia
-maintainers         {@gcenx}
+maintainers         {@Gcenx}
 description         GStreamer is a streaming media framework
 long_description    {*}${description}
 
-supported_archs     noarch
+supported_archs     x86_64
 platforms           {darwin >= 17}
 license             LGPL-2+
 
 homepage            https://gstreamer.freedesktop.org
-master_sites        ${homepage}/data/pkg/osx/${version}/
+dist_subdir         ${github.project}
 
-depends_run         port:gstreamer-runtime \
-                    port:gstreamer-development
+distname            ${name}-1.0-${github.version}-x86_64
+use_xz              yes
 
-post-deactivate {
-    if {![catch {set installed [lindex [registry_active gstreamer-runtime] 0]}]} {
-        registry_deactivate_composite gstreamer-runtime "" [list ports_nodepcheck 1]
-    }
-    if {![catch {set installed [lindex [registry_active gstreamer-development] 0]}]} {
-        registry_deactivate_composite gstreamer-development "" [list ports_nodepcheck 1]
-    }
+checksums           rmd160  9fb67d363dff88e6119e02fb97b56199632a69e5 \
+                    sha256  13ebd64726ec2ed57ec9712417dcf4eb3358bca47034998668c1aad4feaf6a3e \
+                    size    143521036
+
+use_configure       no
+build {}
+
+destroot {
+    copy ${workpath}/GStreamer.framework ${destroot}${frameworks_dir}
 }
